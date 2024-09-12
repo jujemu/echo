@@ -1,4 +1,4 @@
-#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#pragma comment(lib, "ws2_32")
 #include <stdio.h>
 #include <stdlib.h>
 #include <WinSock2.h>
@@ -8,65 +8,41 @@
 
 int main(int argc, char* argv[])
 {
-    char buf[BUF_SIZE] = { 0 };
-    char output[BUF_SIZE] = { "Hello, " };
+	if (argc != 3)
+	{
+		printf("ip주소와 port 번호가 주어져야합니다.");
+		exit(1);
+	}
+	int port = atoi(argv[2]);
+	char addr[16] = { argv[1] };
 
-    WSADATA wsaData;
-    SOCKET client_sock;
-    SOCKADDR_IN server_addr;
+	WSADATA wsa_data;
+	WSAStartup(MAKEWORD(2, 0), &wsa_data);
+	
+	SOCKET client_sock = socket(AF_INET, SOCK_STREAM, 0);
 
-    // 연결할 소켓의 ip 주소, port number 받기
-    if (argc != 3)
-    {
-        printf("give me ip address, port of server\n");
-        exit(1);
-    }
-    int port = atoi(argv[2]);
+	SOCKADDR_IN serv_addr;
+	serv_addr.sin_family = AF_INET;
+	inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr.s_addr);
+	serv_addr.sin_port = htons(port);
+	connect(client_sock, (SOCKADDR*)&serv_addr, sizeof(serv_addr));
 
-    // TCP 소켓 생성
-    WSAStartup(MAKEWORD(2, 0), &wsaData);
-    client_sock = socket(AF_INET, SOCK_STREAM, 0);
-    printf("Socket is created.\n");
+	char buf[BUF_SIZE];
+	char echo[BUF_SIZE];
+	while (1)
+	{
+		printf("%s", "> ");
+		gets_s(buf, BUF_SIZE);
+		send(client_sock, buf, BUF_SIZE, 0);
+		if (strcmp(buf, "!q") == 0)
+			break;
 
-    // 서버 소켓과 연결
-    //memset((char*)&server_addr, 0, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    inet_pton(AF_INET, "127.0.0.1", &server_addr.sin_addr.s_addr);
-    server_addr.sin_port = htons(port); // 16비트
-    if (connect(client_sock, (SOCKADDR*)&server_addr, sizeof(server_addr)) == SOCKET_ERROR)
-    {
-        printf("Connection fails\n");
-        closesocket(client_sock);
-        WSACleanup();
-        exit(1);
-    }
+		recv(client_sock, echo, BUF_SIZE, 0);
+		printf("%s\n", echo);
+	}
 
-    Sleep(1000);
-    recv(client_sock, output, BUF_SIZE, 0);
-    printf("%s", output);
+	closesocket(client_sock);
+	WSACleanup();
 
-    // 메세지 보내기
-    while (1)
-    {
-        printf("%c", '>');
-        memset(buf, 0, BUF_SIZE);
-        gets_s(buf, BUF_SIZE);
-        send(client_sock, buf, BUF_SIZE, 0);
-        if (strcmp(buf, "!q") == 0)
-            break;
-
-        // 보낸 내용을 다시 받는다.
-        while (1)
-        {
-            recv(client_sock, output, BUF_SIZE, 0);
-            if (strncmp(output, "\n\n", 2) == 0)
-                break;
-            printf("%s\n", output);
-        }
-    }
-
-    closesocket(client_sock);
-    WSACleanup();
-
-    return 0;
+	return 0;
 }
