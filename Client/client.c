@@ -14,7 +14,9 @@ int main(int argc, char* argv[])
 		exit(1);
 	}
 	int port = atoi(argv[2]);
-	char addr[16] = { argv[1] };
+	char addr[16];
+	strncpy_s(addr, sizeof(addr) - 1, argv[1], sizeof(addr)-1);
+	addr[sizeof(addr) - 1] = '\0';
 
 	WSADATA wsa_data;
 	WSAStartup(MAKEWORD(2, 0), &wsa_data);
@@ -23,7 +25,7 @@ int main(int argc, char* argv[])
 
 	SOCKADDR_IN serv_addr;
 	serv_addr.sin_family = AF_INET;
-	inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr.s_addr);
+	inet_pton(AF_INET, addr, &serv_addr.sin_addr.s_addr);
 	serv_addr.sin_port = htons(port);
 	connect(client_sock, (SOCKADDR*)&serv_addr, sizeof(serv_addr));
 
