@@ -27,7 +27,12 @@ int main(int argc, char* argv[])
 	serv_addr.sin_family = AF_INET;
 	inet_pton(AF_INET, addr, &serv_addr.sin_addr.s_addr);
 	serv_addr.sin_port = htons(port);
-	connect(client_sock, (SOCKADDR*)&serv_addr, sizeof(serv_addr));
+	int connect_status = connect(client_sock, (SOCKADDR*)&serv_addr, sizeof(serv_addr));
+	if (connect_status < 0)
+	{
+		printf("ÀÌ»óÇÔ\n");
+		exit(1);
+	}
 
 	char buf[BUF_SIZE];
 	char echo[BUF_SIZE];
