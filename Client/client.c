@@ -30,7 +30,7 @@ int main(int argc, char* argv[])
 	int connect_status = connect(client_sock, (SOCKADDR*)&serv_addr, sizeof(serv_addr));
 	if (connect_status < 0)
 	{
-		printf("이상함\n");
+		printf("클라이언트가 서버와 소켓 연결에 실패했습니다.\n");
 		exit(1);
 	}
 
