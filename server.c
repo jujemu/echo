@@ -44,7 +44,7 @@ int main(void)
 					SOCKET client_sock = accept(serv_sock, (SOCKADDR*)&client_addr, &addr_len);
 					printf("%d 소켓이 연결되었습니다.\n", (int)client_sock);
 
-					SSL* ssl = ssl_client_init(&client, client_sock, SSLMODE_SERVER);
+					SSL* ssl = create_ssl(&client, client_sock, SSLMODE_SERVER);
 					push_client_sock(client_sock, ssl);
 				}
 				//클라이언트 소켓에 변화를 감지
@@ -63,10 +63,41 @@ int main(void)
 						break;
 					}
 					
+					const char* http_response = "HTTP/1.1 200 OK\r\n"
+						"Content-Type: text/html; charset=UTF-8\r\n"
+						"Content-Length: 130\r\n"
+						"Connection: close\r\n\r\n"
+						"Hello\r\n";
+
 					//보낸다.
+
+					int target = 0;
+					char target_s[5] = { "\r\n\r\n" };
+					for (int k = 119; k < sizeof(read_buf); k++)
+					{
+						int flag = 1;
+						for (int j = 0; j < sizeof(target_s)-1; j++)
+						{
+							if (read_buf[k+j] != target_s[j])
+							{
+								flag = 0;
+								break;
+							}
+						}
+
+						if (flag)
+						{
+							target = k;
+						}
+					}
+
+					memmove(read_buf, &read_buf[target], BUF_SIZE);
+					read_buf[sizeof(read_buf) - 1] = '\0';
+
 					attach_noti(write_buf, read_buf, current_sock);
 					for (int j = 0; j <= top; j++)
-						if (client_socks[j] != -1 && current_sock != client_socks[j])
+						//if (client_socks[j] > 0 && current_sock != client_socks[j])
+							//SSL_write(ssls[j], http_response, sizeof(http_response));
 							SSL_write(ssls[j], write_buf, BUF_SIZE);
 				}
 			}

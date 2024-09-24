@@ -7,10 +7,10 @@
 #include <openssl/err.h>
 #include <openssl/bio.h>
 
-#define PORT 8080
+#define PORT 443
 #define SOCK_SIZE 10
 #define PREFIX_SIZE 40
-#define BUF_SIZE 1024
+#define BUF_SIZE 100000
 #define CERTIFICATE_PATH "C:\\Users\\jujem\\project\\server.crt"
 #define KEY_PATH "C:\\Users\\jujem\\project\\server.key"
 
@@ -21,7 +21,7 @@ SOCKET client_socks[SOCK_SIZE];
 SSL* ssls[SOCK_SIZE];
 fd_set temp_fds, read_fds;
 
-void error_stdout(char* msg)
+void error_stdout(const char* msg)
 {
 	printf("%s", msg);
 	exit(1);
@@ -111,7 +111,7 @@ struct ssl_client
 	void (*io_on_read)(char* buf, size_t len);
 } client;
 
-SSL* ssl_client_init(struct ssl_client* p,
+SSL* create_ssl(struct ssl_client* p,
 	SOCKET client_sock,
 	enum ssl_mode mode)
 {
@@ -177,8 +177,12 @@ void push_client_sock(SOCKET sock, SSL* ssl)
 
 void attach_noti(char* write_buf, char* read_buf, SOCKET sock)
 {
+	char s[] = "HTTP/1.1 200 OK\r\n"
+		"Content-Type: text/html; charset=UTF-8\r\n"
+		"Content-Length: 130\r\n"
+		"Connection: close\r\n\r\n\n\n";
 	memset(write_buf, 0, BUF_SIZE);
-	snprintf(write_buf, PREFIX_SIZE, "[This message is from %d]\t", (int)sock);
+	snprintf(write_buf, PREFIX_SIZE, s, (int)sock);
 	strcat_s(write_buf, BUF_SIZE, read_buf);
 }
 
