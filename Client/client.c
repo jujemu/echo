@@ -18,7 +18,7 @@ int main(void)
 	do_ssl_handshake();
 
 	//Blocking IO를 처리하는 스레드 생성
-	//HANDLE read_thread_handle = CreateThread(NULL, 0, read_thread, ssl, 0, NULL);
+	HANDLE read_thread_handle = CreateThread(NULL, 0, read_thread, ssl, 0, NULL);
 
 	char read_buf[BUF_SIZE] = { 0, };
 	while (1)
@@ -27,8 +27,8 @@ int main(void)
 		if (strcmp(read_buf, "!q") == 0)
 			break;
 		SSL_write(ssl, read_buf, BUF_SIZE);
-		SSL_read(ssl, read_buf, BUF_SIZE);
-		printf("> %s\n", read_buf);
+		/*SSL_read(ssl, read_buf, BUF_SIZE);
+		printf("> %s\n", read_buf);*/
 	}
 
 	closesocket(client_sock);

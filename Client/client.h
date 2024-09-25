@@ -193,7 +193,14 @@ DWORD WINAPI read_thread(void* param)
 	SSL* ssl = (SSL*)param;
     char echo[BUF_SIZE] = { "abcd" };
 	while (1) {
-        while (SSL_read(ssl, echo, BUF_SIZE) < 0) {}
+        char buf[BUF_SIZE];
+        int f = SSL_read(ssl, echo, BUF_SIZE);
+        while ( f < 0) {
+            int error_code = SSL_get_error(ssl, f);
+            printf("%d\n", error_code);
+            ERR_error_string(error_code, buf);
+            printf("%s\n", buf);
+        }
 		printf("%s\n", echo);
 	}
 }
