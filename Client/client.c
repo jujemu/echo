@@ -27,8 +27,8 @@ int main(void)
 		if (strcmp(read_buf, "!q") == 0)
 			break;
 		SSL_write(ssl, read_buf, BUF_SIZE);
-		/*SSL_read(ssl, read_buf, BUF_SIZE);
-		printf("%s\n", read_buf);*/
+		SSL_read(ssl, read_buf, BUF_SIZE);
+		printf("> %s\n", read_buf);
 	}
 
 	closesocket(client_sock);
