@@ -1,64 +1,38 @@
-#pragma comment(lib, "ws2_32")
-#include <stdio.h>
-#include <stdlib.h>
-#include <WinSock2.h>
-#include <Windows.h>
+#include "client.h"
 
-#define BUF_SIZE 256
-
-DWORD WINAPI thread_func(void* param);
-
-int main(int argc, char* argv[])
+int main(void)
 {
-	if (argc != 3)
-	{
-		printf("ip주소와 port 번호가 주어져야합니다.");
-		exit(1);
-	}
-	int port = atoi(argv[2]);
-	char addr[16];
-	strncpy_s(addr, sizeof(addr) - 1, argv[1], sizeof(addr)-1);
-	addr[sizeof(addr) - 1] = '\0';
+	//WinSock 라이브러리 초기화
+	winsock_init();
 
-	WSADATA wsa_data;
-	WSAStartup(MAKEWORD(2, 0), &wsa_data);
-	
-	SOCKET client_sock = socket(AF_INET, SOCK_STREAM, 0);
-	
-	SOCKADDR_IN serv_addr;
-	serv_addr.sin_family = AF_INET;
-	inet_pton(AF_INET, addr, &serv_addr.sin_addr.s_addr);
-	serv_addr.sin_port = htons(port);
-	int connect_status = connect(client_sock, (SOCKADDR*)&serv_addr, sizeof(serv_addr));
-	if (connect_status < 0)
-	{
-		printf("클라이언트가 서버와 소켓 연결에 실패했습니다.\n");
-		exit(1);
-	}
+	//SSL 라이브러리 초기화
+	ssl_init();
 
-	HANDLE read_thread = CreateThread(NULL, 0, thread_func, client_sock, 0, NULL);
+	//소켓 생성과 서버에 연결 요청
+	SOCKET client_sock = create_socket();
+	connect_server(client_sock);	
 
-	char buf[BUF_SIZE];
+	//SSL과 소켓 연결
+	SSL* ssl = create_ssl(&client, client_sock, SSLMODE_CLIENT);
+
+	do_ssl_handshake();
+
+	//Blocking IO를 처리하는 스레드 생성
+	//HANDLE read_thread_handle = CreateThread(NULL, 0, read_thread, ssl, 0, NULL);
+
+	char read_buf[BUF_SIZE] = { 0, };
 	while (1)
 	{
-		gets_s(buf, BUF_SIZE);
-		send(client_sock, buf, BUF_SIZE, 0);
-		if (strcmp(buf, "!q") == 0)
+		gets_s(read_buf, BUF_SIZE);
+		if (strcmp(read_buf, "!q") == 0)
 			break;
+		SSL_write(ssl, read_buf, BUF_SIZE);
+		/*SSL_read(ssl, read_buf, BUF_SIZE);
+		printf("%s\n", read_buf);*/
 	}
 
 	closesocket(client_sock);
 	WSACleanup();
 
 	return 0;
-}
-
-DWORD WINAPI thread_func(void* client_sock) {
-	client_sock = (SOCKET)client_sock;
-	char echo[BUF_SIZE];
-	while (1) {
-		if (recv(client_sock, echo, BUF_SIZE, 0) <= 0)
-			exit(1);
-		printf("%s\n", echo);
-	}
 }

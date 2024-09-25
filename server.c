@@ -11,7 +11,7 @@ int main(void)
 	//리스닝 소켓 생성, 바인드, 대기 상태
 	SOCKET serv_sock = create_socket();
 	bind_sock(serv_sock);
-	listen(serv_sock, 10);	
+	listen(serv_sock, 10);
 
 	//소켓을 File Descriptor Set에 등록한다. -> select 함수로 등록된 소켓의 변화를 감지할 수 있다.
 	FD_ZERO(&read_fds);
@@ -22,7 +22,7 @@ int main(void)
 	int fd_num = 0, addr_len = 0;
 	SOCKADDR_IN client_addr = { 0, };
 	SOCKET current_sock = 0;
-	
+
 	while (1)
 	{
 		//현재 등록되어 있는 모든 소켓을 temp_fds에 복사한다.
@@ -62,42 +62,11 @@ int main(void)
 						SSL_read_fail(current_sock);
 						break;
 					}
-					
-					const char* http_response = "HTTP/1.1 200 OK\r\n"
-						"Content-Type: text/html; charset=UTF-8\r\n"
-						"Content-Length: 130\r\n"
-						"Connection: close\r\n\r\n"
-						"Hello\r\n";
 
 					//보낸다.
-
-					int target = 0;
-					char target_s[5] = { "\r\n\r\n" };
-					for (int k = 119; k < sizeof(read_buf); k++)
-					{
-						int flag = 1;
-						for (int j = 0; j < sizeof(target_s)-1; j++)
-						{
-							if (read_buf[k+j] != target_s[j])
-							{
-								flag = 0;
-								break;
-							}
-						}
-
-						if (flag)
-						{
-							target = k;
-						}
-					}
-
-					memmove(read_buf, &read_buf[target], BUF_SIZE);
-					read_buf[sizeof(read_buf) - 1] = '\0';
-
 					attach_noti(write_buf, read_buf, current_sock);
 					for (int j = 0; j <= top; j++)
-						//if (client_socks[j] > 0 && current_sock != client_socks[j])
-							//SSL_write(ssls[j], http_response, sizeof(http_response));
+						if (client_socks[j] != -1 && current_sock != client_socks[j])
 							SSL_write(ssls[j], write_buf, BUF_SIZE);
 				}
 			}
