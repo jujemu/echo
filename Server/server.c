@@ -67,7 +67,7 @@ int main(void)
 					attach_noti(write_buf, read_buf, current_sock);
 					for (int j = 0; j <= top; j++)
 						//if (client_socks[j] != -1 && current_sock != client_socks[j])
-							SSL_write(ssls[j], write_buf, BUF_SIZE);
+						SSL_write(ssls[j], write_buf, BUF_SIZE);
 				}
 			}
 			if (--fd_num <= 0)

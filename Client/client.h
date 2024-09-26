@@ -15,9 +15,9 @@ int top = -1;
 
 SSL_CTX* ctx;
 
-enum ssl_mode 
-{ 
-    SSLMODE_SERVER, SSLMODE_CLIENT 
+enum ssl_mode
+{
+    SSLMODE_SERVER, SSLMODE_CLIENT
 };
 
 /* Obtain the return value of an SSL operation and convert into a simplified
@@ -52,31 +52,31 @@ struct ssl_client
 
 void error_stdout(char* msg)
 {
-	printf("%s", msg);
-	exit(1);
+    printf("%s", msg);
+    exit(1);
 }
 
 void winsock_init()
 {
-	WSADATA wsa_data;
-	if (WSAStartup(MAKEWORD(2, 0), &wsa_data) != 0)
-		error_stdout("Winsock 라이브러리 초기화 실패\n");
+    WSADATA wsa_data;
+    if (WSAStartup(MAKEWORD(2, 0), &wsa_data) != 0)
+        error_stdout("Winsock 라이브러리 초기화 실패\n");
 }
 
 void ssl_init() {
-	//OpenSSL 라이브러리 초기화
-	SSL_library_init();
+    //OpenSSL 라이브러리 초기화
+    SSL_library_init();
     OpenSSL_add_all_algorithms();
-	SSL_load_error_strings();
+    SSL_load_error_strings();
 
-	//SSL Context 생성
-	const SSL_METHOD* method = TLS_method();
-	ctx = SSL_CTX_new(method);
-	if (!ctx) {
-		perror("SSL context 생성에 문제가 생겼습니다.");
-		ERR_print_errors_fp(stderr);
-		exit(EXIT_FAILURE);
-	}
+    //SSL Context 생성
+    const SSL_METHOD* method = TLS_method();
+    ctx = SSL_CTX_new(method);
+    if (!ctx) {
+        perror("SSL context 생성에 문제가 생겼습니다.");
+        ERR_print_errors_fp(stderr);
+        exit(EXIT_FAILURE);
+    }
 
     /* Recommended to avoid SSLv2 & SSLv3 */
     SSL_CTX_set_options(ctx, SSL_OP_ALL | SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3);
@@ -84,10 +84,10 @@ void ssl_init() {
 
 SOCKET create_socket()
 {
-	SOCKET sock = socket(AF_INET, SOCK_STREAM, 0);
-	if (sock == INVALID_SOCKET)
-		error_stdout("소켓 생성 실패\n");
-	return sock;
+    SOCKET sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock == INVALID_SOCKET)
+        error_stdout("소켓 생성 실패\n");
+    return sock;
 }
 
 void connect_server(SOCKET sock)
@@ -104,7 +104,7 @@ void connect_server(SOCKET sock)
 }
 
 void print_unencrypted_data(char* buf, size_t len) {
-	printf("%.*s", (int)len, buf);
+    printf("%.*s", (int)len, buf);
 }
 
 SSL* create_ssl(struct ssl_client* p,
@@ -190,17 +190,19 @@ enum sslstatus do_ssl_handshake()
 
 DWORD WINAPI read_thread(void* param)
 {
-	SSL* ssl = (SSL*)param;
+    SSL* ssl = (SSL*)param;
     char echo[BUF_SIZE] = { "abcd" };
-	while (1) {
+    while (1) {
         char buf[BUF_SIZE];
         int f = SSL_read(ssl, echo, BUF_SIZE);
-        while ( f < 0) {
+        if (f < 0) 
+        {
             int error_code = SSL_get_error(ssl, f);
             printf("%d\n", error_code);
             ERR_error_string(error_code, buf);
             printf("%s\n", buf);
+            break;
         }
-		printf("%s\n", echo);
-	}
+        printf("%s\n", echo);
+    }
 }

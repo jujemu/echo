@@ -10,7 +10,7 @@ int main(void)
 
 	//소켓 생성과 서버에 연결 요청
 	SOCKET client_sock = create_socket();
-	connect_server(client_sock);	
+	connect_server(client_sock);
 
 	//SSL과 소켓 연결
 	SSL* ssl = create_ssl(&client, client_sock, SSLMODE_CLIENT);
