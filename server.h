@@ -10,7 +10,7 @@
 #define PORT 443
 #define SOCK_SIZE 10
 #define PREFIX_SIZE 40
-#define BUF_SIZE 100000
+#define BUF_SIZE 1000
 #define CERTIFICATE_PATH "C:\\Users\\jujem\\project\\server.crt"
 #define KEY_PATH "C:\\Users\\jujem\\project\\server.key"
 
@@ -175,14 +175,13 @@ void push_client_sock(SOCKET sock, SSL* ssl)
 	FD_SET(sock, &read_fds);
 }
 
-void attach_noti(char* write_buf, char* read_buf, SOCKET sock)
+void attach_noti(char* write_buf, char* read_buf, size_t payload_size, SOCKET sock)
 {
 	char s[] = "HTTP/1.1 200 OK\r\n"
 		"Content-Type: text/html; charset=UTF-8\r\n"
-		"Content-Length: 130\r\n"
-		"Connection: close\r\n\r\n\n\n";
-	memset(write_buf, 0, BUF_SIZE);
-	snprintf(write_buf, PREFIX_SIZE, s, (int)sock);
+		"Content-Length: %d\r\n"
+		"Connection: close\r\n\r\n";
+	sprintf_s(write_buf, BUF_SIZE, s, payload_size);
 	strcat_s(write_buf, BUF_SIZE, read_buf);
 }
 

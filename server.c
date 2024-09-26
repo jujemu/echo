@@ -63,14 +63,7 @@ int main(void)
 						break;
 					}
 					
-					const char* http_response = "HTTP/1.1 200 OK\r\n"
-						"Content-Type: text/html; charset=UTF-8\r\n"
-						"Content-Length: 130\r\n"
-						"Connection: close\r\n\r\n"
-						"Hello\r\n";
-
 					//º¸³½´Ù.
-
 					int target = 0;
 					char target_s[5] = { "\r\n\r\n" };
 					for (int k = 119; k < sizeof(read_buf); k++)
@@ -88,17 +81,14 @@ int main(void)
 						if (flag)
 						{
 							target = k;
+							memmove(read_buf, &read_buf[target + sizeof(target_s) - 1], BUF_SIZE);
+							break;
 						}
 					}
 
-					memmove(read_buf, &read_buf[target], BUF_SIZE);
-					read_buf[sizeof(read_buf) - 1] = '\0';
-
-					attach_noti(write_buf, read_buf, current_sock);
+					attach_noti(write_buf, read_buf, strlen(read_buf), current_sock);
 					for (int j = 0; j <= top; j++)
-						//if (client_socks[j] > 0 && current_sock != client_socks[j])
-							//SSL_write(ssls[j], http_response, sizeof(http_response));
-							SSL_write(ssls[j], write_buf, BUF_SIZE);
+						SSL_write(ssls[j], write_buf, BUF_SIZE);
 				}
 			}
 			if (--fd_num <= 0)
