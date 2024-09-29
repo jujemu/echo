@@ -67,6 +67,7 @@ int main(void)
 						//SSL_read에서 음수의 응답을 받으면 클라이언트 소켓과 연결이 해제되었음을 의미한다.
 						//연결된 소켓을 회수한다.
 						SSL_read_fail(current_sock);
+						printf("Socket %d와 연결이 해제되었습니다.\n\n", (int)current_sock);
 						continue;
 					}
 
