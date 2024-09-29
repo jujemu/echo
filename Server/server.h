@@ -38,7 +38,8 @@ void winsock_init()
 		error_stdout("Winsock 라이브러리 초기화 실패\n");
 }
 
-void ssl_init() {
+void ssl_init() 
+{
 	//OpenSSL 라이브러리 초기화
 	SSL_library_init();
 	SSL_load_error_strings();
@@ -47,7 +48,8 @@ void ssl_init() {
 	//SSL Context 생성
 	const SSL_METHOD* method = TLS_server_method();
 	ctx = SSL_CTX_new(method);
-	if (!ctx) {
+	if (!ctx)
+	{
 		perror("SSL context 생성에 문제가 생겼습니다.");
 		ERR_print_errors_fp(stderr);
 		exit(EXIT_FAILURE);
@@ -55,7 +57,8 @@ void ssl_init() {
 
 	//인증서 정보 불러오기
 	if (SSL_CTX_use_certificate_file(ctx, CERTIFICATE_PATH, SSL_FILETYPE_PEM) <= 0 ||
-		SSL_CTX_use_PrivateKey_file(ctx, KEY_PATH, SSL_FILETYPE_PEM) <= 0) {
+		SSL_CTX_use_PrivateKey_file(ctx, KEY_PATH, SSL_FILETYPE_PEM) <= 0) 
+	{
 		ERR_print_errors_fp(stderr);
 		exit(EXIT_FAILURE);
 	}
@@ -126,14 +129,9 @@ SSL* create_ssl(struct ssl_client* p,
 	p->wbio = BIO_new(BIO_s_mem());
 	p->ssl = SSL_new(ctx);
 
-	if (mode == SSLMODE_SERVER)
-		SSL_set_accept_state(p->ssl);  /* ssl server mode */
-	else if (mode == SSLMODE_CLIENT)
-		SSL_set_connect_state(p->ssl); /* ssl client mode */
-
+	SSL_set_accept_state(p->ssl);
 	SSL_set_bio(p->ssl, p->rbio, p->wbio);
-
-	SSL_accept(p->ssl);
+	//SSL_accept(p->ssl);
 	p->io_on_read = print_unencrypted_data;
 	SSL_set_fd(p->ssl, client_sock);
 	return p->ssl;

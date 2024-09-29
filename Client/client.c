@@ -36,9 +36,6 @@ int main(void)
 		if (strcmp(std_read_buf, "!q") == 0)
 			break;
 		SSL_write(ssl, std_read_buf, BUF_SIZE);
-		/*int f = SSL_read(ssl, std_write_buf, BUF_SIZE);
-		printf("ssl read return: %d\n", f);
-		printf("std write_buf: %d\n", std_write_buf);*/
 	}
 
 	closesocket(client_sock);
