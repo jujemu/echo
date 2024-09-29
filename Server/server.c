@@ -22,6 +22,7 @@ int main(void)
 	int fd_num = 0, addr_len = 0;
 	SOCKADDR_IN client_addr = { 0, };
 	SOCKET current_sock = 0;
+	SSL* ssl = NULL;
 
 	while (1)
 	{
@@ -44,7 +45,8 @@ int main(void)
 					SOCKET client_sock = accept(serv_sock, (SOCKADDR*)&client_addr, &addr_len);
 					printf("%d 소켓이 연결되었습니다.\n", (int)client_sock);
 
-					SSL* ssl = create_ssl(&client, client_sock, SSLMODE_SERVER);
+					ssl = create_ssl(&client, client_sock, SSLMODE_SERVER);
+					printf("ssl, client sock: %p %d\n", ssl, client_sock);
 					push_client_sock(client_sock, ssl);
 				}
 				//클라이언트 소켓에 변화를 감지
@@ -57,17 +59,32 @@ int main(void)
 						error_stdout("클라이언트 소켓과 대응되는 SSL을 찾을 수 없습니다.");
 
 					//읽고
-					if (SSL_read(ssls[index], read_buf, BUF_SIZE) < 0)
+					int f = 0;
+					if ((f = SSL_read(ssls[index], read_buf, BUF_SIZE)) < 0)
 					{
 						SSL_read_fail(current_sock);
-						break;
+						continue;
 					}
+					printf("read buf : %s\n", read_buf);
+					printf("ssl_read return : %d\n", f);
 
 					//보낸다.
 					attach_noti(write_buf, read_buf, current_sock);
+					if (is_init(read_buf)) {
+						printf("%d client와 TLS 연결 완료\n", current_sock);
+						continue;
+					}
+
 					for (int j = 0; j <= top; j++)
-						//if (client_socks[j] != -1 && current_sock != client_socks[j])
-						SSL_write(ssls[j], write_buf, BUF_SIZE);
+					{
+						if (client_socks[j] != -1 && current_sock != client_socks[j])
+						{
+							int write_return = SSL_write(ssls[j], write_buf, BUF_SIZE);
+							printf("ssl, , current sock, client sock: %p %d\n", ssls[j], (int)current_sock);
+							printf("write return : %d\n", write_return);
+							printf("write_buf: %s\n\n", write_buf);
+						}
+					}
 				}
 			}
 			if (--fd_num <= 0)

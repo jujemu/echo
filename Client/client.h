@@ -10,19 +10,16 @@
 #define IP_ADDR "127.0.0.1"
 #define PORT 443
 #define BUF_SIZE 4096
+#define CA_CERT_PATH "C:\\Users\\jujem\\source\\repos\\Socket\ Programming\\Client\\ca_cert.pem"
 
 int top = -1;
 
-SSL_CTX* ctx;
-
-enum ssl_mode
-{
-    SSLMODE_SERVER, SSLMODE_CLIENT
-};
-
 /* Obtain the return value of an SSL operation and convert into a simplified
  * error code, which is easier to examine for failure. */
-enum sslstatus { SSLSTATUS_OK, SSLSTATUS_WANT_IO, SSLSTATUS_FAIL };
+enum sslstatus 
+{ 
+    SSLSTATUS_OK, SSLSTATUS_WANT_IO, SSLSTATUS_FAIL 
+};
 
 struct ssl_client
 {
@@ -64,22 +61,31 @@ void winsock_init()
 }
 
 void ssl_init() {
-    //OpenSSL 라이브러리 초기화
     SSL_library_init();
     OpenSSL_add_all_algorithms();
     SSL_load_error_strings();
+    ERR_load_crypto_strings();
+}
 
-    //SSL Context 생성
+SSL_CTX* create_ssl_ctx()
+{
     const SSL_METHOD* method = TLS_method();
-    ctx = SSL_CTX_new(method);
-    if (!ctx) {
+    SSL_CTX* ctx = SSL_CTX_new(method);
+    if (!ctx)
+    {
         perror("SSL context 생성에 문제가 생겼습니다.");
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
+}
 
+void ssl_ctx_config(SSL_CTX* ctx)
+{
     /* Recommended to avoid SSLv2 & SSLv3 */
     SSL_CTX_set_options(ctx, SSL_OP_ALL | SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3);
+
+    SSL_CTX_set_verify_depth(ctx, 10);
+    SSL_CTX_load_verify_locations(ctx, CA_CERT_PATH, NULL);
 }
 
 SOCKET create_socket()
@@ -108,24 +114,19 @@ void print_unencrypted_data(char* buf, size_t len) {
 }
 
 SSL* create_ssl(struct ssl_client* p,
-    int fd,
-    enum ssl_mode mode)
+    SSL_CTX* ctx,
+    SOCKET sock)
 {
     memset(p, 0, sizeof(struct ssl_client));
-
-    p->fd = fd;
-
+    p->fd = sock;
     p->rbio = BIO_new(BIO_s_mem());
     p->wbio = BIO_new(BIO_s_mem());
     p->ssl = SSL_new(ctx);
 
-    if (mode == SSLMODE_SERVER)
-        SSL_set_accept_state(p->ssl);  /* ssl server mode */
-    else if (mode == SSLMODE_CLIENT)
-        SSL_set_connect_state(p->ssl); /* ssl client mode */
+    SSL_set_connect_state(p->ssl);
 
     SSL_set_bio(p->ssl, p->rbio, p->wbio);
-
+    SSL_set_fd(client.ssl, sock);
     p->io_on_read = print_unencrypted_data;
     return p->ssl;
 }
@@ -173,6 +174,7 @@ enum sslstatus do_ssl_handshake()
     print_ssl_state();
     int n = SSL_do_handshake(client.ssl);
     print_ssl_state();
+    printf("\n");
     status = get_sslstatus(client.ssl, n);
 
     /* Did SSL request to write bytes? */
@@ -185,24 +187,110 @@ enum sslstatus do_ssl_handshake()
                 return SSLSTATUS_FAIL;
         } while (n > 0);
 
+    /* TLS handshake 이후에 빈 문자열 전송 */
+    SSL_write(client.ssl, "init", 5);
+
     return status;
+}
+
+/* Process SSL bytes received from the peer. The data needs to be fed into the
+   SSL object to be unencrypted.  On success, returns 0, on SSL error -1. */
+int on_read_cb(char* src, size_t len)
+{
+    char buf[BUF_SIZE];
+    enum sslstatus status;
+    int n;
+
+    while (len > 0) {
+        BIO_printf(client.rbio, "\n");
+        n = BIO_write(client.rbio, src, len);
+
+        if (n <= 0)
+            return -1; /* assume bio write failure is unrecoverable */
+
+        src += n;
+        len -= n;
+
+        if (!SSL_is_init_finished(client.ssl)) {
+            if (do_ssl_handshake() == SSLSTATUS_FAIL)
+                return -1;
+            if (!SSL_is_init_finished(client.ssl))
+                return 0;
+        }
+
+        /* The encrypted data is now in the input bio so now we can perform actual
+         * read of unencrypted data. */
+
+        do {
+            n = SSL_read(client.ssl, buf, sizeof(buf));
+            if (n > 0)
+                client.io_on_read(buf, (size_t)n);
+        } while (n > 0);
+
+        status = get_sslstatus(client.ssl, n);
+
+        /* Did SSL request to write bytes? This can happen if peer has requested SSL
+         * renegotiation. */
+        if (status == SSLSTATUS_WANT_IO)
+            do {
+                n = BIO_read(client.wbio, buf, sizeof(buf));
+                if (n > 0)
+                    queue_encrypted_bytes(buf, n);
+                else if (!BIO_should_retry(client.wbio))
+                    return -1;
+            } while (n > 0);
+
+        if (status == SSLSTATUS_FAIL)
+            return -1;
+    }
+
+    return 0;
+}
+
+/* Read encrypted bytes from socket. */
+int do_sock_read()
+{
+    char buf[BUF_SIZE];
+    int n = recv(client.fd, buf, sizeof(buf), 0);
+
+    if (n > 0)
+        return on_read_cb(buf, (size_t)n);
+    else
+        return -1;
+}
+
+
+/* Write encrypted bytes to the socket. */
+int do_sock_write()
+{
+    size_t n = send(client.fd, client.write_buf, client.write_len, 0);
+    if (n > 0) {
+        if ((size_t)n < client.write_len)
+            memmove(client.write_buf, client.write_buf + n, client.write_len - n);
+        client.write_len -= n;
+        client.write_buf = (char*)realloc(client.write_buf, client.write_len);
+        return 0;
+    }
+    else
+        return -1;
 }
 
 DWORD WINAPI read_thread(void* param)
 {
     SSL* ssl = (SSL*)param;
-    char echo[BUF_SIZE] = { "abcd" };
+    char echo[BUF_SIZE] = { 0, };
     while (1) {
-        char buf[BUF_SIZE];
+        //char buf[BUF_SIZE];
         int f = SSL_read(ssl, echo, BUF_SIZE);
         if (f < 0) 
         {
             int error_code = SSL_get_error(ssl, f);
-            printf("%d\n", error_code);
-            ERR_error_string(error_code, buf);
-            printf("%s\n", buf);
+            printf("error Code: %d\n", error_code);
+            /*ERR_error_string(error_code, buf);
+            printf("%s\n", buf);*/
             break;
         }
+        
         printf("%s\n", echo);
     }
 }

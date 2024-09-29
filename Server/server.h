@@ -1,5 +1,9 @@
 #pragma once
+
 #pragma comment(lib, "ws2_32")
+#pragma comment(lib, "libcrypto")
+#pragma comment(lib, "libssl")
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <WinSock2.h>
@@ -9,10 +13,10 @@
 
 #define PORT 443
 #define SOCK_SIZE 10
-#define PREFIX_SIZE 40
-#define BUF_SIZE 100000
-#define CERTIFICATE_PATH "C:\\Users\\jujem\\project\\server.crt"
-#define KEY_PATH "C:\\Users\\jujem\\project\\server.key"
+#define PREFIX_SIZE 4096
+#define BUF_SIZE 4096
+#define CERTIFICATE_PATH "C:\\Users\\jujem\\source\\repos\\Socket\ Programming\\server_cert.pem"
+#define KEY_PATH "C:\\Users\\jujem\\source\\repos\\Socket\ Programming\\server.key"
 
 int top = -1;
 
@@ -23,7 +27,7 @@ fd_set temp_fds, read_fds;
 
 void error_stdout(const char* msg)
 {
-	printf("%s", msg);
+	printf("[Error occurs]: %s\n", msg);
 	exit(1);
 }
 
@@ -32,28 +36,6 @@ void winsock_init()
 	WSADATA wsa_data;
 	if (WSAStartup(MAKEWORD(2, 0), &wsa_data) != 0)
 		error_stdout("Winsock 라이브러리 초기화 실패\n");
-}
-
-SOCKET create_socket()
-{
-	SOCKET sock = socket(AF_INET, SOCK_STREAM, 0);
-	if (sock == INVALID_SOCKET)
-		error_stdout("소켓 생성 실패\n");
-	return sock;
-}
-
-void bind_sock(SOCKET sock)
-{
-	SOCKADDR_IN serv_addr;
-	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-	serv_addr.sin_port = htons(PORT);
-	if (bind(sock, (SOCKADDR*)&serv_addr, sizeof(serv_addr)))
-	{
-		closesocket(sock);
-		WSACleanup();
-		error_stdout("지정된 포트 번호와 바인드 실패");
-	}
 }
 
 void ssl_init() {
@@ -76,6 +58,28 @@ void ssl_init() {
 		SSL_CTX_use_PrivateKey_file(ctx, KEY_PATH, SSL_FILETYPE_PEM) <= 0) {
 		ERR_print_errors_fp(stderr);
 		exit(EXIT_FAILURE);
+	}
+}
+
+SOCKET create_socket()
+{
+	SOCKET sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (sock == INVALID_SOCKET)
+		error_stdout("소켓 생성 실패\n");
+	return sock;
+}
+
+void bind_sock(SOCKET sock)
+{
+	SOCKADDR_IN serv_addr;
+	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	serv_addr.sin_port = htons(PORT);
+	if (bind(sock, (SOCKADDR*)&serv_addr, sizeof(serv_addr)))
+	{
+		closesocket(sock);
+		WSACleanup();
+		error_stdout("지정된 포트 번호와 바인드 실패");
 	}
 }
 
@@ -129,6 +133,7 @@ SSL* create_ssl(struct ssl_client* p,
 
 	SSL_set_bio(p->ssl, p->rbio, p->wbio);
 
+	SSL_accept(p->ssl);
 	p->io_on_read = print_unencrypted_data;
 	SSL_set_fd(p->ssl, client_sock);
 	return p->ssl;
@@ -167,6 +172,13 @@ void SSL_read_fail(SOCKET sock)
 	FD_CLR(sock, &read_fds);
 }
 
+void attach_noti(char* write_buf, char* read_buf, SOCKET sock)
+{
+	memset(write_buf, 0, BUF_SIZE);
+	snprintf(write_buf, BUF_SIZE, "[This is from socket %d] > ", (int)sock);
+	strcat_s(write_buf, BUF_SIZE, read_buf);
+}
+
 void push_client_sock(SOCKET sock, SSL* ssl)
 {
 	top++;
@@ -175,21 +187,23 @@ void push_client_sock(SOCKET sock, SSL* ssl)
 	FD_SET(sock, &read_fds);
 }
 
-void attach_noti(char* write_buf, char* read_buf, SOCKET sock)
-{
-	char s[] = "HTTP/1.1 200 OK\r\n"
-		"Content-Type: text/html; charset=UTF-8\r\n"
-		"Content-Length: 130\r\n"
-		"Connection: close\r\n\r\n\n\n";
-	memset(write_buf, 0, BUF_SIZE);
-	snprintf(write_buf, PREFIX_SIZE, s, (int)sock);
-	strcat_s(write_buf, BUF_SIZE, read_buf);
-}
-
 int find_index(SOCKET* socks, size_t size, SOCKET sock) {
 	for (int i = 0; i < size; i++) {
 		if (socks[i] == sock)
 			return i;
 	}
 	return -1;
+}
+
+int is_init(char* buf)
+{
+	char init_str[] = { "init" };
+	if (strlen(buf) != strlen(init_str))
+		return 0;
+	
+	for (int i = 0; i < strlen(init_str); i++)
+	{
+		if (init_str[i] != buf[i])
+			return 0;
+	} return 1;
 }

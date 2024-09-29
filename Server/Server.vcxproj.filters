@@ -23,5 +23,8 @@
     <ClInclude Include="server.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="ssl_socket_pair.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
